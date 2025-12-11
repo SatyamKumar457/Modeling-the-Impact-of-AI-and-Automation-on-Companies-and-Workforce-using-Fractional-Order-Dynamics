@@ -1,0 +1,95 @@
+clc; clear; close all;
+
+% ================================================================
+% Fractional RK-2 Simulation for 4-Equation AI–Company–Employee Model
+% ================================================================
+
+% ----------------------------
+% Numerical parameters
+% ----------------------------
+h   = 0.1;             % time step
+T   = 20;              % total time
+N   = round(T/h);      % number of iterations
+t   = 0:h:T;           % time vector
+ alpha    = 1;      % fractional order
+gamma_a = gamma(alpha + 1);   % Gamma(alpha+1)
+
+% ----------------------------
+% Model parameters
+% ----------------------------
+sigma      =0.373794;
+gamma_      =0.112466;
+muA        =0.127316;
+Lambda     =2.969900;
+beta_C      =0.781300;
+muC        =0.543700;
+s          =0.886456;
+zeta       =0.168300;
+eta        =0.280660;
+muE        =0.351900;
+kappa      =0.130906;
+mu0        =0.181472;
+
+% ----------------------------
+% RHS definitions (fractional ODEs without lam_scale)
+% ----------------------------
+dA  = @(A,C,E)   sigma*A.*C - gamma_*A.*E - muA*A;
+dC  = @(A,C)     Lambda - beta_C*A.*C - muC*C;
+dE  = @(A,C,E)   s*C + zeta*A.*C - eta*E - muE*E;
+dEp = @(C,E,Ep)  eta*E + kappa*C - mu0*Ep;
+
+% ----------------------------
+% Initial conditions
+% ----------------------------
+A(1)  = 0.5;
+C(1)  = 0.8;
+E(1)  = 0.6;
+Ep(1) = 0.2;
+
+% ----------------------------
+% Fractional RK-2 Integration
+% ----------------------------
+for k = 1:N
+    % --- k1 ---
+    k1A  = dA(A(k),C(k),E(k));
+    k1C  = dC(A(k),C(k));
+    k1E  = dE(A(k),C(k),E(k));
+    k1Ep = dEp(C(k),E(k),Ep(k));
+
+    % --- Midpoint estimates ---
+    A_mid  = A(k)  + 0.5*(h^alpha)/gamma_a * k1A;
+    C_mid  = C(k)  + 0.5*(h^alpha)/gamma_a * k1C;
+    E_mid  = E(k)  + 0.5*(h^alpha)/gamma_a * k1E;
+    Ep_mid = Ep(k) + 0.5*(h^alpha)/gamma_a * k1Ep;
+
+    % --- k2 ---
+    k2A  = dA(A_mid,C_mid,E_mid);
+    k2C  = dC(A_mid,C_mid);
+    k2E  = dE(A_mid,C_mid,E_mid);
+    k2Ep = dEp(C_mid,E_mid,Ep_mid);
+
+    % --- Update ---
+    A(k+1)  = A(k)  + (h^alpha)/gamma_a * k2A;
+    C(k+1)  = C(k)  + (h^alpha)/gamma_a * k2C;
+    E(k+1)  = E(k)  + (h^alpha)/gamma_a * k2E;
+    Ep(k+1) = Ep(k) + (h^alpha)/gamma_a * k2Ep;
+end
+
+% ----------------------------
+% Plot results
+% ----------------------------
+figure('Color','w'); hold on; grid on;
+plot(t, A ,'-','LineWidth',2,'Color',[0 0.447 0.741]);
+plot(t, C ,'-','LineWidth',2,'Color',[0.850 0.325 0.098]);
+plot(t, E ,'-','LineWidth',2,'Color',[0.929 0.694 0.125]);
+plot(t, Ep,'-','LineWidth',2,'Color',[0.494 0.184 0.556]);
+
+xlabel('Time (t)','FontSize',12,'FontWeight','bold');
+ylabel('Total Capacity','FontSize',12,'FontWeight','bold');
+title(sprintf('Fractional RK-2 Simulation (\\alpha = %.3f)', alpha),...
+    'FontSize',14,'FontWeight','bold');
+legend({'A(t) – Automation',...
+        'C(t) – Company',...
+        'E(t) – Employees',...
+        'E_p(t) – Entrepreneurship'},...
+        'Location','best','FontSize',11);
