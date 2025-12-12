@@ -1,0 +1,93 @@
+import numpy as np
+from scipy.integrate import solve_ivp
+import matplotlib.pyplot as plt
+
+# -------------------------------------------------
+# Parameters (MODIFIED to ensure I0 < 1)
+# -------------------------------------------------
+sigma = 0.10     # lower automation spread
+gamma_ = 0.40    # higher mitigation
+muA = 0.127316
+Lambda = 2.969900
+beta_C = 0.781300
+muC = 0.543700
+s = 0.886456
+zeta = 0.168300
+eta = 0.280660
+muE = 0.351900
+kappa = 0.130906
+mu0 = 0.181472
+
+# -------------------------------------------------
+# Compute I0
+# -------------------------------------------------
+C0 = Lambda / muC
+E0 = s * C0 / (eta + muE)
+I0 = sigma * C0 / (gamma_ * E0 + muA)
+print(f"Effective I0 = {I0:.4f}  (Should be < 1)")
+
+# -------------------------------------------------
+# Compute TCEE equilibrium (from the expression given)
+# -------------------------------------------------
+A_star = 0
+
+C_star = (s / (eta + muE)) * (Lambda / muC)
+E_star = Lambda / muC
+Ep_star = (Lambda / (muC * mu0)) * ((eta * s) / (eta + muE) + kappa)
+
+print("\n--- TCEE Equilibrium Values (Corrected) ---")
+print(f"A*  = {A_star:.6f}")
+print(f"C*  = {C_star:.6f}")
+print(f"E*  = {E_star:.6f}")
+print(f"Ep* = {Ep_star:.6f}")
+print("------------------------------------------")
+
+# -------------------------------------------------
+# Initial conditions (slightly perturbed)
+# -------------------------------------------------
+y0 = [0.5,0.8,0.6,0.2]
+
+# -------------------------------------------------
+# ODE System
+# -------------------------------------------------
+def company_employee_model(t, y):
+    A, C, E, Ep = y
+    dA = sigma * A * C - gamma_ * A * E - muA * A
+    dC = Lambda - beta_C * A * C - muC * C
+    dE = s * C + zeta * A * C - (eta + muE) * E
+    dEp = eta * E + kappa * C - mu0 * Ep
+    return [dA, dC, dE, dEp]
+
+# -------------------------------------------------
+# Solve ODE
+# -------------------------------------------------
+t_span = (0, 100)
+t_eval = np.linspace(0, 100, 2000)
+
+solution = solve_ivp(company_employee_model, t_span, y0, t_eval=t_eval)
+A, C, E, Ep = solution.y
+
+# -------------------------------------------------
+# Plot
+# -------------------------------------------------
+plt.figure(figsize=(10, 6))
+
+# Solid curves
+plt.plot(solution.t, A, color='r', label='Automation A(t)')
+plt.plot(solution.t, C, color='g', label='Companies C(t)')
+plt.plot(solution.t, E, color='b', label='Employees E(t)')
+plt.plot(solution.t, Ep, color='m', label='Entrepreneurs Ep(t)')
+
+# Equilibrium dashed lines
+plt.axhline(A_star, color='r', linestyle='--', alpha=0.8, label='A* (TCEE)')
+plt.axhline(C_star, color='g', linestyle='--', alpha=0.8, label='C* (TCEE)')
+plt.axhline(E_star, color='b', linestyle='--', alpha=0.8, label='E* (TCEE)')
+plt.axhline(Ep_star, color='m', linestyle='--', alpha=0.8, label='Ep* (TCEE)')
+
+plt.xlabel("Time")
+plt.ylabel("Population / Level")
+plt.title("Convergence to TCEE (I0 < 1)")
+plt.grid(True)
+plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+plt.tight_layout()
+plt.show()
